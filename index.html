@@ -336,6 +336,116 @@
   }
   .checkout-btn:hover{background:var(--ink);}
 
+  /* ---------- MODAL PARA VER FOTOS EN GRANDE ---------- */
+
+.card-img.has-photo {
+  cursor: zoom-in;
+}
+
+.card-img.has-photo img {
+  transition: transform .25s ease;
+}
+
+.card-img.has-photo:hover img {
+  transform: scale(1.04);
+}
+
+.image-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(40, 20, 30, .85);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease;
+}
+
+.image-modal.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.image-modal-dialog {
+  position: relative;
+  max-width: min(900px, 92vw);
+  max-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-modal img {
+  display: block;
+  max-width: 100%;
+  max-height: 82vh;
+  width: auto;
+  height: auto;
+  border-radius: 20px;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+}
+
+.image-modal-close {
+  position: absolute;
+  top: -18px;
+  right: -18px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .2);
+}
+
+.image-modal-close:hover {
+  background: var(--pink-dark);
+  color: #fff;
+}
+
+.image-modal-caption {
+  position: absolute;
+  bottom: -42px;
+  left: 50%;
+  width: max-content;
+  max-width: 90vw;
+  transform: translateX(-50%);
+  color: #fff;
+  text-align: center;
+  font-size: .95rem;
+}
+
+@media (max-width: 640px) {
+  .image-modal {
+    padding: 16px;
+  }
+
+  .image-modal img {
+    max-width: 94vw;
+    max-height: 78vh;
+    border-radius: 14px;
+  }
+
+  .image-modal-close {
+    top: -12px;
+    right: -6px;
+  }
+
+  .image-modal-caption {
+    bottom: -34px;
+    font-size: .85rem;
+  }
+}
+
   @media (max-width:768px){
     .categories{grid-template-columns:1fr 1fr;}
   }
@@ -595,6 +705,32 @@
   </div>
 </div>
 
+<!-- MODAL PARA VER LA FOTO EN GRANDE -->
+<div
+  class="image-modal"
+  id="image-modal"
+  aria-hidden="true"
+  onclick="closeImageModal(event)"
+>
+  <div class="image-modal-dialog">
+    <button
+      class="image-modal-close"
+      type="button"
+      aria-label="Cerrar imagen"
+      onclick="closeImageModal(event)"
+    >
+      ✕
+    </button>
+
+    <img id="image-modal-img" src="" alt="">
+
+    <div
+      class="image-modal-caption"
+      id="image-modal-caption"
+    ></div>
+  </div>
+</div>
+
 <script>
 /* ======================================================
    1. CONFIGURACIÓN — edita aquí vuestro número y productos
@@ -670,9 +806,23 @@ function pendantSVG(color){
 
 /* Devuelve la foto real del producto si existe, si no el dibujo de recambio */
 function productVisual(p, alt){
-  return p.img
-    ? `<img src="${p.img}" alt="${alt}" loading="lazy">`
-    : pendantSVG(p.color);
+  if (!p.img) {
+    return pendantSVG(p.color);
+  }
+
+  const safeSrc = p.img.replace(/'/g, "\\'");
+  const safeAlt = alt.replace(/'/g, "\\'");
+
+  return `
+    <img
+      src="${safeSrc}"
+      alt="${safeAlt}"
+      loading="lazy"
+      decoding="async"
+      onclick="openImageModal('${safeSrc}', '${safeAlt}')"
+      onerror="this.style.display='none'"
+    >
+  `;
 }
 
 function renderFilterBar(){
@@ -696,7 +846,7 @@ function renderProducts(){
   const list = activeFilter === "all" ? products : products.filter(p => p.cat === activeFilter);
   grid.innerHTML = list.map(p => `
     <div class="card">
-      <div class="card-img">
+      <div class="card-img ${p.img ? "has-photo" : ""}">
         <span class="card-tag">${categoryLabels[p.cat]}</span>
         ${productVisual(p, p.name)}
       </div>
@@ -788,6 +938,46 @@ function drawChain(elId){
   }
   el.innerHTML = out;
 }
+
+function openImageModal(src, alt){
+  const modal = document.getElementById("image-modal");
+  const modalImg = document.getElementById("image-modal-img");
+  const caption = document.getElementById("image-modal-caption");
+
+  modalImg.src = src;
+  modalImg.alt = alt;
+  caption.textContent = alt;
+
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+}
+
+function closeImageModal(event){
+  if (
+    event &&
+    event.target !== event.currentTarget &&
+    !event.target.classList.contains("image-modal-close")
+  ) {
+    return;
+  }
+
+  const modal = document.getElementById("image-modal");
+  const modalImg = document.getElementById("image-modal-img");
+  const caption = document.getElementById("image-modal-caption");
+
+  modal.classList.remove("show");
+  modal.setAttribute("aria-hidden", "true");
+  modalImg.src = "";
+  caption.textContent = "";
+  document.body.style.overflow = "";
+}
+
+document.addEventListener("keydown", function(event){
+  if (event.key === "Escape") {
+    closeImageModal();
+  }
+});
 
 renderFilterBar();
 renderProducts();
